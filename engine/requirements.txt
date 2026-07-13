@@ -1,0 +1,14 @@
+# Core engine dependencies
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# Perceptual hashing
+imagehash>=4.3.0
+
+# Face recognition (optional, premium tier)
+# opencv-python>=4.8.0
+# face-recognition>=1.3.0
+
+# Development
+pytest>=7.0.0
+pytest-cov>=4.0.0

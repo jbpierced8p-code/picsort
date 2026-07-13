@@ -1,0 +1,52 @@
+{
+  "name": "picsort-ai",
+  "version": "0.1.0",
+  "description": "AI-powered desktop app that scans photo and video libraries to find duplicates, group faces, and auto-organize media.",
+  "main": "dist-electron/main.js",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "dev:electron": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"sleep 3 && tsc -p tsconfig.electron.json && electron .\"",
+    "electron:build": "tsc -p tsconfig.electron.json && vite build && electron-builder",
+    "dist": "electron-builder",
+    "lint": "eslint . --ext ts,tsx"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.1.2",
+    "electron": "^35.1.2",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.2",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "ai.picsort.desktop",
+    "productName": "PicSort AI",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "mac": {
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

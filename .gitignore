@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-electron/
+release/
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+.env
+.env.local
+.vercel/
+.venv/
+.pytest_cache/
+*.egg-info/
+.nyc_output/
