@@ -1,6 +1,6 @@
 """
 PicSort AI - Engine Package
-Core scanning engine, metadata extraction, and database index.
+Core scanning engine, metadata extraction, perceptual hashing, and database index.
 """
 
 from .scanner import (
@@ -11,6 +11,8 @@ from .scanner import (
     MediaType,
     scan_directory,
     find_exact_duplicates,
+    find_near_duplicates,
+    find_all_duplicates,
     run_scan,
     quick_scan,
     is_supported_media,
@@ -22,6 +24,21 @@ from .scanner import (
 )
 
 from .exif import extract_exif
+from .hashing import (
+    compute_phash,
+    compute_phash_hex,
+    compute_dhash,
+    compute_whash,
+    compute_colorhash,
+    compute_all_hashes,
+    compute_video_phash,
+    hamming_distance,
+    find_near_duplicates_by_phash,
+    find_video_near_duplicates,
+    find_all_near_duplicates,
+    sample_video_frames,
+)
+
 from .db import (
     get_connection,
     init_db,
@@ -32,6 +49,8 @@ from .db import (
     close,
 )
 
+__version__ = "0.3.0"
+
 __all__ = [
     # Scanner
     "MediaFileInfo",
@@ -41,6 +60,8 @@ __all__ = [
     "MediaType",
     "scan_directory",
     "find_exact_duplicates",
+    "find_near_duplicates",
+    "find_all_duplicates",
     "run_scan",
     "quick_scan",
     "is_supported_media",
@@ -51,6 +72,19 @@ __all__ = [
     "SUPPORTED_EXTENSIONS",
     # EXIF
     "extract_exif",
+    # Hashing
+    "compute_phash",
+    "compute_phash_hex",
+    "compute_dhash",
+    "compute_whash",
+    "compute_colorhash",
+    "compute_all_hashes",
+    "compute_video_phash",
+    "hamming_distance",
+    "find_near_duplicates_by_phash",
+    "find_video_near_duplicates",
+    "find_all_near_duplicates",
+    "sample_video_frames",
     # Database
     "get_connection",
     "init_db",

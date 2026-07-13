@@ -52,6 +52,10 @@ def init_db(conn: sqlite3.Connection) -> None:
             created         REAL,
             modified        REAL,
             sha256          TEXT,
+            phash           TEXT,
+            dhash           TEXT,
+            whash           TEXT,
+            video_hash      TEXT,
             image_width     INTEGER,
             image_height    INTEGER,
             camera_make     TEXT,
@@ -73,6 +77,8 @@ def init_db(conn: sqlite3.Connection) -> None:
             ON media_files(media_type);
         CREATE INDEX IF NOT EXISTS idx_media_files_sha256
             ON media_files(sha256);
+        CREATE INDEX IF NOT EXISTS idx_media_files_phash
+            ON media_files(phash);
         CREATE INDEX IF NOT EXISTS idx_media_files_scan_id
             ON media_files(scan_id);
         CREATE INDEX IF NOT EXISTS idx_media_files_date_taken
@@ -121,12 +127,14 @@ def upsert_media_file(conn: sqlite3.Connection, scan_id: int, file_data: Dict) -
         """INSERT OR REPLACE INTO media_files (
             scan_id, path, filename, extension, media_type,
             size, created, modified, sha256,
+            phash, dhash, whash, video_hash,
             image_width, image_height, camera_make, camera_model,
             date_taken, gps_latitude, gps_longitude,
             duration_sec, video_codec, has_exif, last_scanned
         ) VALUES (
             :scan_id, :path, :filename, :extension, :media_type,
             :size, :created, :modified, :sha256,
+            :phash, :dhash, :whash, :video_hash,
             :image_width, :image_height, :camera_make, :camera_model,
             :date_taken, :gps_latitude, :gps_longitude,
             :duration_sec, :video_codec, :has_exif, :last_scanned
@@ -141,6 +149,10 @@ def upsert_media_file(conn: sqlite3.Connection, scan_id: int, file_data: Dict) -
             "created": file_data.get("created"),
             "modified": file_data.get("modified"),
             "sha256": file_data.get("sha256"),
+            "phash": file_data.get("phash"),
+            "dhash": file_data.get("dhash"),
+            "whash": file_data.get("whash"),
+            "video_hash": file_data.get("video_hash"),
             "image_width": file_data.get("image_width"),
             "image_height": file_data.get("image_height"),
             "camera_make": file_data.get("camera_make"),
