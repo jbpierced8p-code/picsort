@@ -23,6 +23,8 @@ from engine.hashing import (
     find_video_near_duplicates,
     find_all_near_duplicates,
     sample_video_frames,
+    sample_video_frames_ffmpeg,
+    compute_video_phash_ffmpeg,
     compute_video_phash,
     hash_to_bits,
     HAS_IMAGEHASH,
@@ -34,6 +36,10 @@ from engine.scanner import (
     find_near_duplicates,
     find_all_duplicates,
 )
+from engine.tiers import set_tier, AppTier
+
+# Enable Premium tier for all perceptual hashing tests
+set_tier(AppTier.PREMIUM)
 
 
 # ─── Helper: create a test image ──────────────────────────────────────────

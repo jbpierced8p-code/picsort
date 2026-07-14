@@ -21,7 +21,10 @@ from engine.db import (
     upsert_media_file,
     get_stats,
     close,
+    find_near_duplicates_by_hash,
+    find_duplicate_groups,
 )
+from engine.tiers import has_feature
 
 __version__ = "0.3.0"
 
@@ -186,22 +189,24 @@ def extract_metadata(filepath: str) -> MediaFileInfo:
         except Exception:
             pass
 
-        # Compute perceptual hashes for images
-        try:
-            from engine.hashing import compute_phash_hex, compute_dhash, compute_whash
-            info.phash = compute_phash_hex(filepath)
-            info.dhash = compute_dhash(filepath)
-            info.whash = compute_whash(filepath)
-        except Exception:
-            pass
+        # Compute perceptual hashes for images (Premium feature)
+        if has_feature("perceptual_hashing"):
+            try:
+                from engine.hashing import compute_phash_hex, compute_dhash, compute_whash
+                info.phash = compute_phash_hex(filepath)
+                info.dhash = compute_dhash(filepath)
+                info.whash = compute_whash(filepath)
+            except Exception:
+                pass
 
-    # Compute perceptual hash for videos (frame sampling)
+    # Compute perceptual hash for videos (Premium feature, uses ffmpeg)
     elif media_type == MediaType.VIDEO.value:
-        try:
-            from engine.hashing import compute_video_phash
-            info.video_hash = compute_video_phash(filepath)
-        except Exception:
-            pass
+        if has_feature("perceptual_hashing"):
+            try:
+                from engine.hashing import compute_video_phash_ffmpeg
+                info.video_hash = compute_video_phash_ffmpeg(filepath)
+            except Exception:
+                pass
 
     # For videos, try to get dimensions from ffmpeg probe or keep basic info
     # TODO: Add ffprobe-based video metadata extraction
@@ -323,26 +328,38 @@ def find_all_duplicates(
     phash_threshold: int = 5,
     video_threshold: int = 20,
     progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    premium: bool = False,
 ) -> List[DuplicateGroup]:
     """
-    Find all duplicates: exact (SHA-256) + near (perceptual hash).
-    Near-duplicate groups are appended after exact groups.
+    Find all duplicates: exact (SHA-256) + optional near (perceptual hash).
 
-    Returns a combined list of DuplicateGroup objects.
+    Near-duplicate detection (perceptual hashing) is a Premium-tier feature.
+    When premium=False, only exact SHA-256 duplicates are returned.
+
+    Args:
+        files: List of MediaFileInfo objects to check.
+        phash_threshold: Max Hamming distance for image near-duplicates.
+        video_threshold: Max distance for video near-duplicates.
+        progress_callback: Optional progress callback.
+        premium: If True, includes perceptual near-duplicate detection.
+
+    Returns:
+        Combined list of DuplicateGroup objects.
     """
     groups: List[DuplicateGroup] = []
 
-    # Phase 1: Exact duplicates
+    # Phase 1: Exact duplicates (available on all tiers)
     if progress_callback:
         progress_callback({"phase": "exact", "total": len(files), "current": 0, "percentage": 0})
     exact = find_exact_duplicates(files)
     groups.extend(exact)
 
-    # Phase 2: Near-duplicate images
-    if progress_callback:
-        progress_callback({"phase": "near_image", "total": len(files), "current": 0, "percentage": 0})
-    near = find_near_duplicates(files, phash_threshold=phash_threshold, video_threshold=video_threshold)
-    groups.extend(near)
+    # Phase 2: Near-duplicate detection (Premium tier only)
+    if premium:
+        if progress_callback:
+            progress_callback({"phase": "near_image", "total": len(files), "current": 0, "percentage": 0})
+        near = find_near_duplicates(files, phash_threshold=phash_threshold, video_threshold=video_threshold)
+        groups.extend(near)
 
     if progress_callback:
         progress_callback({"phase": "done", "total": len(files), "current": len(files), "percentage": 100})

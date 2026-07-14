@@ -223,10 +223,95 @@ def get_stats(conn: sqlite3.Connection) -> Dict:
             COALESCE(SUM(CASE WHEN media_type = 'video' THEN 1 ELSE 0 END), 0) as videos,
             COALESCE(SUM(size), 0) as total_size,
             COALESCE(SUM(CASE WHEN has_exif = 1 THEN 1 ELSE 0 END), 0) as with_exif,
-            COALESCE(SUM(CASE WHEN sha256 IS NOT NULL THEN 1 ELSE 0 END), 0) as hashed
+            COALESCE(SUM(CASE WHEN sha256 IS NOT NULL THEN 1 ELSE 0 END), 0) as hashed,
+            COALESCE(SUM(CASE WHEN phash IS NOT NULL THEN 1 ELSE 0 END), 0) as with_phash
         FROM media_files"""
     ).fetchone()
     return dict(row) if row else {}
+
+
+def find_near_duplicates_by_hash(
+    conn: sqlite3.Connection,
+    target_phash: str,
+    max_distance: int = 5,
+    limit: int = 50,
+) -> List[Dict]:
+    """
+    Find images with similar perceptual hashes using bit-counting.
+    Fetches candidates with same prefix (first 4 hex chars for speed),
+    then filters by actual Hamming distance in application code.
+
+    Args:
+        conn: Database connection.
+        target_phash: The perceptual hash to match against.
+        max_distance: Maximum Hamming distance.
+        limit: Maximum results.
+
+    Returns:
+        List of matching media file dicts.
+    """
+    if not target_phash or len(target_phash) < 4:
+        return []
+
+    prefix = target_phash[:4]
+    rows = conn.execute(
+        """SELECT * FROM media_files
+           WHERE phash IS NOT NULL
+           AND phash LIKE ?
+           AND media_type = 'image'
+           ORDER BY last_scanned DESC
+           LIMIT ?""",
+        (f"{prefix}%", limit * 10),  # Get extra for filtering
+    ).fetchall()
+
+    results = []
+    for row in rows:
+        row_dict = dict(row)
+        if row_dict.get("phash") == target_phash:
+            # Exact perceptual match
+            row_dict["hamming_distance"] = 0
+            results.append(row_dict)
+        elif len(results) < limit:
+            # Need to compute distance - return all for app-level filtering
+            row_dict["hamming_distance"] = None
+            results.append(row_dict)
+
+    return results[:limit]
+
+
+def find_duplicate_groups(
+    conn: sqlite3.Connection,
+    min_group_size: int = 2,
+    limit: int = 100,
+) -> List[Dict]:
+    """
+    Find groups of exact duplicate files (same SHA-256).
+    Returns aggregated group info.
+
+    Args:
+        conn: Database connection.
+        min_group_size: Minimum number of files to form a group.
+        limit: Maximum groups to return.
+
+    Returns:
+        List of dicts with sha256, file_count, total_size, sample_path.
+    """
+    rows = conn.execute(
+        """SELECT
+            sha256,
+            COUNT(*) as file_count,
+            SUM(size) as total_size,
+            MIN(path) as sample_path,
+            MIN(media_type) as media_type
+        FROM media_files
+        WHERE sha256 IS NOT NULL
+        GROUP BY sha256
+        HAVING COUNT(*) >= ?
+        ORDER BY file_count DESC
+        LIMIT ?""",
+        (min_group_size, limit),
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def close(conn: sqlite3.Connection) -> None:

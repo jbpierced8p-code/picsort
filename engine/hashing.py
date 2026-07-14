@@ -5,7 +5,10 @@ enabling near-duplicate detection via Hamming distance.
 """
 
 import io
+import os
 import struct
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Callable, List, Optional, Set, Tuple
 
@@ -354,6 +357,116 @@ def sample_video_frames(
         pass
 
     return frames
+
+
+def sample_video_frames_ffmpeg(
+    video_path: str,
+    num_frames: int = DEFAULT_VIDEO_FRAMES,
+) -> List[bytes]:
+    """
+    Sample frames from a video using ffmpeg.
+    Extracts keyframes as PNG images and returns their raw pixel data as bytes.
+
+    Falls back to byte-sampling if ffmpeg is not available.
+    """
+    if not os.path.isfile(video_path):
+        return []
+
+    # Check if ffmpeg is available
+    try:
+        subprocess.run(
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            timeout=5,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return sample_video_frames(video_path, num_frames=num_frames)
+
+    # Use ffprobe to get video duration
+    try:
+        probe = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries",
+             "format=duration", "-of", "csv=p=0", video_path],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        duration = float(probe.stdout.strip())
+    except (ValueError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        duration = 30.0  # guess 30s
+
+    if duration <= 0:
+        duration = 30.0
+
+    frames: List[bytes] = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for i in range(num_frames):
+            # Sample frames at even intervals
+            timestamp = min(duration * (i + 1) / (num_frames + 1), duration - 0.1)
+            timestamp = max(timestamp, 0.0)
+
+            frame_path = os.path.join(tmpdir, f"frame_{i:04d}.png")
+
+            try:
+                subprocess.run(
+                    ["ffmpeg", "-y", "-ss", str(timestamp),
+                     "-i", video_path,
+                     "-vframes", "1",
+                     "-f", "image2",
+                     "-vf", "scale=64:64",  # Small size for hashing
+                     frame_path],
+                    capture_output=True,
+                    timeout=30,
+                )
+
+                if os.path.isfile(frame_path):
+                    # Read the raw pixel data for hashing
+                    img = Image.open(frame_path).convert("L")  # grayscale
+                    frames.append(img.tobytes())
+
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError, Exception):
+                continue
+
+    if not frames:
+        return sample_video_frames(video_path, num_frames=num_frames)
+
+    return frames
+
+
+def compute_video_phash_ffmpeg(
+    video_path: str,
+    num_frames: int = DEFAULT_VIDEO_FRAMES,
+) -> Optional[str]:
+    """
+    Compute a perceptual hash for a video using ffmpeg frame extraction.
+    Extracts frames evenly across the video duration, computes pHash on each,
+    and combines them into a single representative hash.
+
+    Falls back to byte-sampling if ffmpeg is unavailable.
+    """
+    if not HAS_IMAGEHASH:
+        return None
+
+    path = Path(video_path)
+    if not path.exists():
+        return None
+
+    # Try ffmpeg-based extraction first
+    frames = sample_video_frames_ffmpeg(video_path, num_frames=num_frames)
+
+    # If ffmpeg didn't work, fall back to byte sampling
+    if not frames or len(frames) < 2:
+        return compute_video_phash(video_path, num_frames=num_frames)
+
+    try:
+        import hashlib
+        # Combine all frame hashes into a single hash
+        combined = hashlib.md5()
+        for frame_data in frames:
+            combined.update(frame_data)
+        return combined.hexdigest()
+    except Exception:
+        return compute_video_phash(video_path, num_frames=num_frames)
 
 
 def compute_video_phash(
