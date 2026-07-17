@@ -51,19 +51,6 @@ from .db import (
 
 from .tiers import set_tier, get_tier, has_feature, AppTier, TIER_CONFIG
 
-from .face_detection import (
-    DetectedFace,
-    FaceGroup,
-    detect_faces,
-    compute_face_encodings,
-    cluster_faces_by_person,
-    find_face_groups_in_directory,
-    init_face_db,
-    save_face_group,
-    get_face_groups,
-    get_faces_for_group,
-)
-
 __version__ = "0.4.0"
 
 __all__ = [
@@ -114,15 +101,4 @@ __all__ = [
     "has_feature",
     "AppTier",
     "TIER_CONFIG",
-    # Face Detection
-    "DetectedFace",
-    "FaceGroup",
-    "detect_faces",
-    "compute_face_encodings",
-    "cluster_faces_by_person",
-    "find_face_groups_in_directory",
-    "init_face_db",
-    "save_face_group",
-    "get_face_groups",
-    "get_faces_for_group",
 ]
