@@ -1,14 +1,6 @@
-# ML model dependencies
-# Face recognition
-# opencv-python>=4.8.0
-# face-recognition>=1.3.0
-# dlib>=19.24.0
-# scikit-learn>=1.3.0
-
-# Image processing
-Pillow>=10.0.0
-numpy>=1.24.0
-imagehash>=4.3.0
-
-# Core ML
-# torch>=2.0.0 (optional, for advanced models)
+opencv-python-headless>=4.8
+scikit-learn>=1.3
+Pillow>=10
+numpy>=1.24
+# face_recognition (optional, for 128-d encodings)
+# dlib-bin (pre-built wheel, avoids compiling dlib from source)
